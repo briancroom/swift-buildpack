@@ -27,6 +27,7 @@ compile_buildpack_dir=$(cd $(dirname $0); cd ..; pwd)
 compile_buildpack_bin=$compile_buildpack_dir/bin
 $compile_buildpack_dir/compile-extensions/bin/check_stack_support
 
+
 # Load some convenience functions like status(), echo(), and indent()
 source $compile_buildpack_dir/bin/common.sh
 
@@ -57,9 +58,16 @@ CLANG_PATH=$CACHE_DIR/$(echo $CLANG_NAME_VERSION/clang*)
 
 export PATH="$SWIFT_PATH/usr/bin:$CLANG_PATH/bin:$PATH"
 
+status "Replacing swift-build binary"
+cp -f "$compile_buildpack_dir/vendor/swift-build" $(which swift-build)
+
 cd $BUILD_DIR
 status "Building Package"
-swift build --configuration release | indent
+swift build --configuration release 2>/dev/null | indent || true
+echo "Adjusting modulemaps" | indent
+find Packages -name "*modulemap" | xargs sed -i "s,\"/,\"$BUILD_DIR/.apt/,"
+echo "Retrying build with finished configuration" | indent
+swift build --configuration release -Xlinker "-L$BUILD_DIR/.apt/usr/local/lib" | indent
 
 # These should be statically linked, seems a swift bug
 status "Copying dynamic libraries"
