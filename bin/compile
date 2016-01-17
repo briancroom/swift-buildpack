@@ -59,7 +59,11 @@ export PATH="$SWIFT_PATH/usr/bin:$CLANG_PATH/bin:$PATH"
 
 cd $BUILD_DIR
 status "Building Package"
-swift build --configuration release | indent
+swift build --configuration release 2>/dev/null | indent || true
+echo "Adjusting modulemaps" | indent
+find Packages -name "*modulemap" | xargs sed -i "s,\"/,\"$BUILD_DIR/.apt/,"
+echo "Retrying build with finished configuration" | indent
+swift build --configuration release -Xlinker "-L$BUILD_DIR/.apt/usr/local/lib" | indent
 
 # These should be statically linked, seems a swift bug
 status "Copying dynamic libraries"
